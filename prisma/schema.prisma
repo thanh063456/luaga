@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Tài khoản người dùng & Phân quyền
+model User {
+  id          String            @id @default(uuid())
+  email       String            @unique
+  name        String
+  password    String            // Chuỗi hash an toàn pbkdf2
+  role        String            @default("RECRUITER") // ADMIN, MANAGER, RECRUITER, VIEWER
+  trang_thai  String            @default("active")    // active, locked
+  drafts      PostDraft[]
+  jobPosts    JobPost[]
+  assignments GroupAssignment[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// Bảng phân công nhóm Facebook cho từng nhân sự
+model GroupAssignment {
+  id        String   @id @default(uuid())
+  user_id   String
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  group_id  String
+  group     Group    @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([user_id, group_id])
+}
+
+// Nhật ký kiểm toán thao tác hệ thống
+model AuditLog {
+  id         String   @id @default(uuid())
+  user_id    String?
+  user       User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  hanh_dong  String   // "LOGIN", "GENERATE_DRAFT", "APPROVE_DRAFT", "REWRITE", "DELETE", "SETTING"
+  chi_tiet   String   @default("")
+  ip_address String?
+  createdAt  DateTime @default(now())
+}
+
+// Danh sách Facebook Group
+model Group {
+  id          String            @id @default(uuid())
+  ten_group   String
+  link_group  String
+  khu_vuc     String
+  ghi_chu     String            @default("")
+  trang_thai  String            @default("active")
+  drafts      PostDraft[]
+  assignments GroupAssignment[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// Tin tuyển dụng đồng bộ từ Google Sheets / nhập tay / upload
+model JobPost {
+  id                String      @id @default(uuid())
+  ten_cong_ty       String      @default("")
+  ngay_dang         String      @default("")
+  vi_tri_tuyen      String
+  khu_vuc           String
+  mo_ta_cong_viec   String
+  yeu_cau           String      @default("")
+  muc_luong         String      @default("")
+  thong_tin_lien_he String      @default("")
+  trang_thai_sync   String      @default("raw")
+  user_id           String?
+  user              User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  drafts            PostDraft[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Bảng lưu mẫu công việc để AI ghi nhớ
+model JobTemplate {
+  id                String   @id @default(uuid())
+  ten_cong_ty       String
+  vi_tri_tuyen      String
+  khu_vuc           String
+  mo_ta_cong_viec   String   @default("")
+  yeu_cau           String   @default("")
+  muc_luong         String   @default("")
+  thong_tin_lien_he String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([ten_cong_ty, vi_tri_tuyen])
+}
+
+// Bản nháp AI viết riêng cho từng Group
+model PostDraft {
+  id               String   @id @default(uuid())
+  job_post_id      String
+  job_post         JobPost  @relation(fields: [job_post_id], references: [id], onDelete: Cascade)
+  group_id         String
+  group            Group    @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  noi_dung_ai_viet String
+  trang_thai       String   @default("draft") // "draft", "posted"
+  trang_thai_duyet String   @default("pending") // "pending", "approved", "rejected"
+  duyet_boi        String?  // tên hoặc ID người duyệt
+  tone             String   @default("tu_nhien") // "tu_nhien", "gen_z", "chuyen_nghiep", "gap_rut", "storytelling"
+  user_id          String?
+  user             User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  thoi_gian_tao    DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Cấu hình hệ thống
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
