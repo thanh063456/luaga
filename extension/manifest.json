@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "FB Job Poster Assistant",
+  "version": "1.0.0",
+  "description": "Trợ lý tự động điền tin tuyển dụng vào Facebook Group 1-Click từ ứng dụng FB Job Poster",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.facebook.com/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FB Job Poster Assistant"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.facebook.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

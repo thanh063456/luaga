@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ToastContainer } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
 import { useAuth } from "@/hooks/useAuth";
+import BannerGeneratorModal from "@/components/BannerGeneratorModal";
 
 interface Group {
   id: string;
@@ -111,6 +112,8 @@ export default function DashboardPage() {
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [stats, setStats] = useState({ total: 0, posted: 0, pending: 0, approved: 0 });
+  const [bannerData, setBannerData] = useState<any>(null);
+  const [showBannerModal, setShowBannerModal] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
 
   const isManagerOrAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "MANAGER";
@@ -606,6 +609,23 @@ export default function DashboardPage() {
                             </button>
                           )}
 
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => {
+                              setBannerData({
+                                vi_tri: draft.job_post.vi_tri_tuyen,
+                                cong_ty: draft.job_post.ten_cong_ty,
+                                luong: draft.job_post.muc_luong,
+                                khu_vuc: draft.job_post.khu_vuc,
+                                lien_he: draft.job_post.thong_tin_lien_he,
+                              });
+                              setShowBannerModal(true);
+                            }}
+                            title="Tạo ảnh banner tuyển dụng sắc nét cho bài viết này"
+                          >
+                            🎨 Banner
+                          </button>
+
                           {/* Duyệt bài (Admin/Manager) */}
                           {isManagerOrAdmin && draft.trang_thai_duyet !== "approved" && (
                             <button
@@ -880,6 +900,15 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal tạo ảnh banner tự động */}
+      {showBannerModal && bannerData && (
+        <BannerGeneratorModal
+          isOpen={showBannerModal}
+          onClose={() => setShowBannerModal(false)}
+          initialData={bannerData}
+        />
       )}
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />

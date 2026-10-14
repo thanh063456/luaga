@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 const baseNavItems = [
   { href: "/", label: "Dashboard", icon: "⚡", roles: ["ADMIN", "MANAGER", "RECRUITER", "VIEWER"] },
   { href: "/parse", label: "Dán & Phân tích AI", icon: "🧠", roles: ["ADMIN", "MANAGER", "RECRUITER"] },
+  { href: "/queue", label: "Hàng đợi Giờ Vàng", icon: "⏰", roles: ["ADMIN", "MANAGER", "RECRUITER"] },
+  { href: "/screen", label: "Sàng lọc CV AI", icon: "📄", roles: ["ADMIN", "MANAGER", "RECRUITER"] },
   { href: "/groups", label: "Quản lý Group", icon: "👥", roles: ["ADMIN", "MANAGER", "RECRUITER", "VIEWER"] },
   { href: "/jobs", label: "Tin tuyển dụng", icon: "📋", roles: ["ADMIN", "MANAGER", "RECRUITER", "VIEWER"] },
   { href: "/history", label: "Lịch sử", icon: "📜", roles: ["ADMIN", "MANAGER", "RECRUITER", "VIEWER"] },

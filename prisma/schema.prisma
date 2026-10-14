@@ -61,21 +61,22 @@ model Group {
 
 // Tin tuyển dụng đồng bộ từ Google Sheets / nhập tay / upload
 model JobPost {
-  id                String      @id @default(uuid())
-  ten_cong_ty       String      @default("")
-  ngay_dang         String      @default("")
+  id                String               @id @default(uuid())
+  ten_cong_ty       String               @default("")
+  ngay_dang         String               @default("")
   vi_tri_tuyen      String
   khu_vuc           String
   mo_ta_cong_viec   String
-  yeu_cau           String      @default("")
-  muc_luong         String      @default("")
-  thong_tin_lien_he String      @default("")
-  trang_thai_sync   String      @default("raw")
+  yeu_cau           String               @default("")
+  muc_luong         String               @default("")
+  thong_tin_lien_he String               @default("")
+  trang_thai_sync   String               @default("raw")
   user_id           String?
-  user              User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  user              User?                @relation(fields: [user_id], references: [id], onDelete: SetNull)
   drafts            PostDraft[]
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  screenings        CandidateScreening[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 }
 
 // Bảng lưu mẫu công việc để AI ghi nhớ
@@ -96,20 +97,49 @@ model JobTemplate {
 
 // Bản nháp AI viết riêng cho từng Group
 model PostDraft {
-  id               String   @id @default(uuid())
+  id               String               @id @default(uuid())
   job_post_id      String
-  job_post         JobPost  @relation(fields: [job_post_id], references: [id], onDelete: Cascade)
+  job_post         JobPost              @relation(fields: [job_post_id], references: [id], onDelete: Cascade)
   group_id         String
-  group            Group    @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  group            Group                @relation(fields: [group_id], references: [id], onDelete: Cascade)
   noi_dung_ai_viet String
-  trang_thai       String   @default("draft") // "draft", "posted"
-  trang_thai_duyet String   @default("pending") // "pending", "approved", "rejected"
-  duyet_boi        String?  // tên hoặc ID người duyệt
-  tone             String   @default("tu_nhien") // "tu_nhien", "gen_z", "chuyen_nghiep", "gap_rut", "storytelling"
+  trang_thai       String               @default("draft") // "draft", "copied", "posted"
+  trang_thai_duyet String               @default("pending") // "pending", "approved", "rejected"
+  duyet_boi        String?              // tên hoặc ID người duyệt
+  tone             String               @default("tu_nhien") // "tu_nhien", "gen_z", "chuyen_nghiep", "gap_rut", "storytelling"
   user_id          String?
-  user             User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  thoi_gian_tao    DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  user             User?                @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  queueItems       PostScheduleQueue[]
+  thoi_gian_tao    DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+}
+
+// Hàng đợi đăng bài theo khung giờ vàng (Chống spam)
+model PostScheduleQueue {
+  id                String    @id @default(uuid())
+  draft_id          String
+  draft             PostDraft @relation(fields: [draft_id], references: [id], onDelete: Cascade)
+  thoi_gian_du_kien DateTime
+  trang_thai        String    @default("waiting") // "waiting", "completed", "skipped"
+  khung_gio         String    @default("sang")    // "sang", "trua", "chieu", "toi"
+  ghi_chu           String    @default("")
+  createdAt         DateTime  @default(now())
+}
+
+// AI Sàng lọc và chấm điểm CV ứng viên
+model CandidateScreening {
+  id                String   @id @default(uuid())
+  job_post_id       String
+  job_post          JobPost  @relation(fields: [job_post_id], references: [id], onDelete: Cascade)
+  ten_ung_vien      String   @default("Ứng viên")
+  file_name         String   @default("")
+  match_score       Int      @default(0) // Thang điểm 0 - 100
+  danh_gia          String   @default("can_nhac") // "phu_hop", "can_nhac", "khong_phu_hop"
+  uu_diem           String   @default("") // JSON string hoặc text
+  nhuoc_diem        String   @default("")
+  cau_hoi_phong_van String   @default("") // JSON string array
+  tom_tat           String   @default("")
+  createdAt         DateTime @default(now())
 }
 
 // Cấu hình hệ thống
