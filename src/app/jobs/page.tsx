@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { ToastContainer } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface JobPost {
   id: string;
@@ -49,6 +50,8 @@ export default function JobsPage() {
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
   const { toasts, addToast, removeToast } = useToast();
+  const { user: currentUser } = useAuth();
+  const isManagerOrAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "MANAGER";
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -212,7 +215,7 @@ export default function JobsPage() {
               Xem tin đã đồng bộ và quản lý bộ nhớ công việc đã lưu của AI
             </p>
           </div>
-          {activeTab === "jobs" && (
+          {activeTab === "jobs" && isManagerOrAdmin && (
             <button className="btn btn-primary btn-lg" onClick={handleSync} disabled={syncing} id="btn-sync-jobs">
               {syncing ? <><span className="spinner" /> Đang đồng bộ...</> : "🔄 Đồng bộ Sheet"}
             </button>
@@ -330,16 +333,18 @@ export default function JobsPage() {
                         >
                           🧠 Lưu vào bộ nhớ AI
                         </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteJob(job.id, job.ten_cong_ty, job.vi_tri_tuyen);
-                          }}
-                          id={`btn-delete-job-${job.id}`}
-                        >
-                          🗑 Xóa tin tuyển dụng
-                        </button>
+                        {isManagerOrAdmin && (
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteJob(job.id, job.ten_cong_ty, job.vi_tri_tuyen);
+                            }}
+                            id={`btn-delete-job-${job.id}`}
+                          >
+                            🗑 Xóa tin tuyển dụng
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -382,27 +387,31 @@ export default function JobsPage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        style={{ border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", fontSize: 12 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditTemplate(tpl);
-                        }}
-                        id={`btn-edit-tpl-${tpl.id}`}
-                      >
-                        ✏️ Sửa bộ nhớ
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteTemplate(tpl.id, tpl.ten_cong_ty, tpl.vi_tri_tuyen);
-                        }}
-                        id={`btn-delete-tpl-${tpl.id}`}
-                      >
-                        🗑 Xóa
-                      </button>
+                      {isManagerOrAdmin && (
+                        <>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", fontSize: 12 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditTemplate(tpl);
+                            }}
+                            id={`btn-edit-tpl-${tpl.id}`}
+                          >
+                            ✏️ Sửa bộ nhớ
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTemplate(tpl.id, tpl.ten_cong_ty, tpl.vi_tri_tuyen);
+                            }}
+                            id={`btn-delete-tpl-${tpl.id}`}
+                          >
+                            🗑 Xóa
+                          </button>
+                        </>
+                      )}
                       <span style={{ color: "var(--text-muted)", fontSize: 18, marginLeft: 8 }}>{expandedTemplate === tpl.id ? "▲" : "▼"}</span>
                     </div>
                   </div>

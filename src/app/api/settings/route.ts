@@ -9,6 +9,10 @@ const ALLOWED_KEYS = [
   "google_service_account_json",
   "google_spreadsheet_id",
   "google_sheet_name",
+  "telegram_bot_token",
+  "telegram_chat_id",
+  "telegram_notify_pending",
+  "telegram_notify_queue",
 ];
 
 export async function GET() {

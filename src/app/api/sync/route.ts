@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { fetchJobsFromSheet, appendJobToSheet } from "@/lib/sheets";
 import { rewriteJobPost } from "@/lib/ollama";
 import { getCurrentUser } from "@/lib/auth";
+import { notifyDraftsPendingApproval } from "@/lib/telegram";
 
 function cleanKhuVuc(s: string): string {
   let res = s.toLowerCase()
@@ -117,8 +118,19 @@ Thông tin liên hệ: ${job.thong_tin_lien_he}`;
 export async function POST(req: NextRequest) {
   try {
     const currentUser = await getCurrentUser(req);
+    if (currentUser?.role === "VIEWER") {
+      return NextResponse.json({ error: "Cộng tác viên (Chỉ xem) không có quyền tạo hoặc đồng bộ tin" }, { status: 403 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const tone = body.tone || "tu_nhien";
+
+    // Nếu đồng bộ toàn bộ từ Sheets thì chỉ Admin hoặc Manager được phép
+    if (!body.manual) {
+      if (currentUser && currentUser.role !== "ADMIN" && currentUser.role !== "MANAGER") {
+        return NextResponse.json({ error: "Chỉ Quản trị viên hoặc Trưởng nhóm mới có quyền đồng bộ từ Google Sheets" }, { status: 403 });
+      }
+    }
 
     // Nếu có body (nhập thủ công), lưu trực tiếp
     if (body.manual && body.job) {
@@ -189,6 +201,15 @@ export async function POST(req: NextRequest) {
         sheetWriteSuccess = false;
       }
 
+      if (totalDrafts > 0) {
+        notifyDraftsPendingApproval({
+          count: totalDrafts,
+          jobTitle: jobData.vi_tri_tuyen,
+          company: jobData.ten_cong_ty,
+          creatorName: currentUser?.name,
+        }).catch((e) => console.error("Lỗi gửi Telegram notify:", e));
+      }
+
       return NextResponse.json({
         message: `Đã tạo tin thủ công và sinh ${totalDrafts} bản nháp bằng Ollama.${sheetWriteSuccess ? " Đã tự động lưu vào Google Sheet!" : ""}`,
         newJobs: 1,
@@ -234,6 +255,14 @@ export async function POST(req: NextRequest) {
     }
 
     const totalDrafts = await processDraftsForJobs(newJobs, undefined, tone, currentUser?.id);
+
+    if (totalDrafts > 0) {
+      notifyDraftsPendingApproval({
+        count: totalDrafts,
+        jobTitle: `${newJobs.length} vị trí tuyển dụng mới`,
+        creatorName: currentUser?.name || "Hệ thống tự động",
+      }).catch((e) => console.error("Lỗi gửi Telegram notify:", e));
+    }
 
     return NextResponse.json({
       message: `Đồng bộ thành công: ${newJobs.length} tin mới, ${totalDrafts} bản nháp được tạo với Ollama.`,

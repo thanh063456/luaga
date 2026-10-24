@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, checkAndIncrementAiQuota } from "@/lib/auth";
 import { rewriteJobPost, checkBlacklistWords } from "@/lib/ollama";
 
 export async function PUT(
@@ -22,6 +22,11 @@ export async function PUT(
 
   // Yêu cầu viết lại bằng AI với tone mới
   if (body.action === "rewrite") {
+    // Kiểm tra hạn ngạch AI của người dùng
+    const quotaCheck = await checkAndIncrementAiQuota(currentUser?.id);
+    if (!quotaCheck.allowed) {
+      return NextResponse.json({ error: quotaCheck.error }, { status: 429 });
+    }
     const tone = body.tone || currentDraft.tone || "tu_nhien";
     const jobInfo = `Vị trí: ${currentDraft.job_post.vi_tri_tuyen}
 Khu vực: ${currentDraft.job_post.khu_vuc}

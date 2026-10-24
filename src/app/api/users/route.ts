@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
       name: true,
       role: true,
       trang_thai: true,
+      ai_quota_per_day: true,
+      ai_used_today: true,
       createdAt: true,
       _count: {
         select: {
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { email, name, password, role = "RECRUITER", groupIds = [] } = body;
+    const { email, name, password, role = "RECRUITER", groupIds = [], ai_quota_per_day = 50 } = body;
 
     if (!email || !name || !password) {
       return NextResponse.json({ error: "Vui lòng điền đủ Email, Họ tên và Mật khẩu" }, { status: 400 });
@@ -66,6 +68,7 @@ export async function POST(req: NextRequest) {
         password: hashPassword(password),
         role: finalRole,
         trang_thai: "active",
+        ai_quota_per_day: Number(ai_quota_per_day) || 50,
         assignments: {
           create: groupIds.map((groupId: string) => ({
             group: { connect: { id: groupId } },

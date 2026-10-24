@@ -14,6 +14,9 @@ model User {
   password    String            // Chuỗi hash an toàn pbkdf2
   role        String            @default("RECRUITER") // ADMIN, MANAGER, RECRUITER, VIEWER
   trang_thai  String            @default("active")    // active, locked
+  ai_quota_per_day Int          @default(50)          // Hạn ngạch sinh bài AI mỗi ngày
+  ai_used_today    Int          @default(0)           // Số lượt đã dùng hôm nay
+  last_active_day  String       @default("")          // Ngày gần nhất (YYYY-MM-DD)
   drafts      PostDraft[]
   jobPosts    JobPost[]
   assignments GroupAssignment[]
@@ -74,7 +77,6 @@ model JobPost {
   user_id           String?
   user              User?                @relation(fields: [user_id], references: [id], onDelete: SetNull)
   drafts            PostDraft[]
-  screenings        CandidateScreening[]
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 }
@@ -106,6 +108,9 @@ model PostDraft {
   trang_thai       String               @default("draft") // "draft", "copied", "posted"
   trang_thai_duyet String               @default("pending") // "pending", "approved", "rejected"
   duyet_boi        String?              // tên hoặc ID người duyệt
+  ghi_chu_duyet    String               @default("")        // Ghi chú hoặc lý do từ chối của Quản lý
+  link_bai_dang    String               @default("")        // Đường link bài đăng thực tế trên Facebook
+  nhac_day_bai     DateTime?                                // Thời điểm nhắc đẩy bài (bump)
   tone             String               @default("tu_nhien") // "tu_nhien", "gen_z", "chuyen_nghiep", "gap_rut", "storytelling"
   user_id          String?
   user             User?                @relation(fields: [user_id], references: [id], onDelete: SetNull)
@@ -126,21 +131,6 @@ model PostScheduleQueue {
   createdAt         DateTime  @default(now())
 }
 
-// AI Sàng lọc và chấm điểm CV ứng viên
-model CandidateScreening {
-  id                String   @id @default(uuid())
-  job_post_id       String
-  job_post          JobPost  @relation(fields: [job_post_id], references: [id], onDelete: Cascade)
-  ten_ung_vien      String   @default("Ứng viên")
-  file_name         String   @default("")
-  match_score       Int      @default(0) // Thang điểm 0 - 100
-  danh_gia          String   @default("can_nhac") // "phu_hop", "can_nhac", "khong_phu_hop"
-  uu_diem           String   @default("") // JSON string hoặc text
-  nhuoc_diem        String   @default("")
-  cau_hoi_phong_van String   @default("") // JSON string array
-  tom_tat           String   @default("")
-  createdAt         DateTime @default(now())
-}
 
 // Cấu hình hệ thống
 model Setting {

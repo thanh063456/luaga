@@ -118,4 +118,53 @@ export async function ensureDefaultAdmin() {
   }
 }
 
+export function isManagerOrAdmin(role?: string): boolean {
+  return role === "ADMIN" || role === "MANAGER";
+}
+
+export function isAdmin(role?: string): boolean {
+  return role === "ADMIN";
+}
+
+export function canPerformActions(role?: string): boolean {
+  return role === "ADMIN" || role === "MANAGER" || role === "RECRUITER";
+}
+
+export async function checkAndIncrementAiQuota(userId?: string): Promise<{ allowed: boolean; remaining: number; error?: string }> {
+  if (!userId) return { allowed: true, remaining: 999 };
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return { allowed: true, remaining: 999 };
+
+  // Admin được miễn hạn ngạch không giới hạn
+  if (user.role === "ADMIN") return { allowed: true, remaining: 99999 };
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  let usedToday = user.ai_used_today;
+  if (user.last_active_day !== todayStr) {
+    usedToday = 0;
+  }
+
+  if (usedToday >= user.ai_quota_per_day) {
+    return {
+      allowed: false,
+      remaining: 0,
+      error: `Tài khoản của bạn đã đạt giới hạn hạn ngạch AI trong ngày (${user.ai_quota_per_day}/${user.ai_quota_per_day} lượt). Vui lòng liên hệ Quản trị viên để nâng hạn mức.`,
+    };
+  }
+
+  // Cập nhật số lượt đã dùng
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ai_used_today: usedToday + 1,
+      last_active_day: todayStr,
+    },
+  });
+
+  return {
+    allowed: true,
+    remaining: user.ai_quota_per_day - (usedToday + 1),
+  };
+}
+
 export { AUTH_COOKIE_NAME, SESSION_EXPIRY_DAYS };

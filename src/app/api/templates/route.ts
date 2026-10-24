@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, canPerformActions } from "@/lib/auth";
 
 export async function GET() {
   const templates = await prisma.jobTemplate.findMany({
@@ -10,6 +11,14 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser || !canPerformActions(currentUser.role)) {
+      return NextResponse.json(
+        { error: "Bạn không có quyền lưu mẫu công việc" },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     if (!body.ten_cong_ty || !body.vi_tri_tuyen || !body.khu_vuc) {
       return NextResponse.json({ error: "Tên công ty, vị trí tuyển và khu vực là bắt buộc." }, { status: 400 });

@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ToastContainer } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 
 interface ParsedJob {
@@ -219,6 +220,23 @@ export default function ParsePage() {
     if (!editedJob) return false;
     return matchKhuVucClient(editedJob.khu_vuc || "", g.khu_vuc);
   });
+
+  const { user: currentUser } = useAuth();
+
+  if (currentUser && currentUser.role === "VIEWER") {
+    return (
+      <div className="page-body" style={{ textAlign: "center", padding: "100px 20px" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Truy cập bị từ chối</h2>
+        <p style={{ color: "var(--text-secondary)", maxWidth: 460, margin: "0 auto 24px" }}>
+          Tính năng Dán tin & Phân tích AI chỉ dành cho Quản trị viên, Trưởng nhóm và Nhân viên Tuyển dụng.
+        </p>
+        <a href="/" className="btn btn-primary">
+          ↩ Quay lại Trang chủ
+        </a>
+      </div>
+    );
+  }
 
   return (
     <>

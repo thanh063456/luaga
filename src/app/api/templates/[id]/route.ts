@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser, isManagerOrAdmin } from "@/lib/auth";
 
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser || !isManagerOrAdmin(currentUser.role)) {
+      return NextResponse.json(
+        { error: "Chỉ Quản trị viên hoặc Trưởng nhóm mới có quyền sửa mẫu công việc" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await req.json();
     const template = await prisma.jobTemplate.update({
@@ -20,10 +29,18 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser || !isManagerOrAdmin(currentUser.role)) {
+      return NextResponse.json(
+        { error: "Chỉ Quản trị viên hoặc Trưởng nhóm mới có quyền xóa mẫu công việc" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     await prisma.jobTemplate.delete({ where: { id } });
     return NextResponse.json({ success: true });

@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { ToastContainer } from "@/components/Toast";
 import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Group {
   id: string; ten_group: string; link_group: string; khu_vuc: string; ghi_chu: string; trang_thai: string;
@@ -27,6 +28,8 @@ export default function GroupsPage() {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toasts, addToast, removeToast } = useToast();
+  const { user: currentUser } = useAuth();
+  const isManagerOrAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "MANAGER";
 
   const fetchGroups = useCallback(async () => {
     setLoading(true);
@@ -100,14 +103,16 @@ export default function GroupsPage() {
               {groups.length} group · {groups.filter(g => g.trang_thai === "active").length} đang hoạt động
             </p>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-secondary" onClick={downloadTemplate} id="btn-download-template">📥 Tải template CSV</button>
-            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={importing} id="btn-import-csv">
-              {importing ? <><span className="spinner" /> Importing...</> : "📤 Import CSV"}
-            </button>
-            <input ref={fileInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={e => e.target.files?.[0] && handleImportCSV(e.target.files[0])} />
-            <button className="btn btn-primary" onClick={openAdd} id="btn-add-group">+ Thêm Group</button>
-          </div>
+          {isManagerOrAdmin && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-secondary" onClick={downloadTemplate} id="btn-download-template">📥 Tải template CSV</button>
+              <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={importing} id="btn-import-csv">
+                {importing ? <><span className="spinner" /> Importing...</> : "📤 Import CSV"}
+              </button>
+              <input ref={fileInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={e => e.target.files?.[0] && handleImportCSV(e.target.files[0])} />
+              <button className="btn btn-primary" onClick={openAdd} id="btn-add-group">+ Thêm Group</button>
+            </div>
+          )}
         </div>
 
         {/* Filters */}
@@ -126,20 +131,22 @@ export default function GroupsPage() {
 
       <div className="page-body">
         {/* Drag-drop zone */}
-        <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleImportCSV(f); }}
-          style={{
-            border: `2px dashed ${dragOver ? "var(--accent)" : "var(--border)"}`,
-            borderRadius: 12, padding: 20, textAlign: "center",
-            color: dragOver ? "var(--accent)" : "var(--text-muted)",
-            background: dragOver ? "var(--accent-light)" : "transparent",
-            marginBottom: 24, transition: "all 0.2s", fontSize: 14,
-          }}
-        >
-          {importing ? <><span className="spinner" /> Đang import...</> : "📂 Kéo thả file CSV vào đây để import hàng loạt"}
-        </div>
+        {isManagerOrAdmin && (
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleImportCSV(f); }}
+            style={{
+              border: `2px dashed ${dragOver ? "var(--accent)" : "var(--border)"}`,
+              borderRadius: 12, padding: 20, textAlign: "center",
+              color: dragOver ? "var(--accent)" : "var(--text-muted)",
+              background: dragOver ? "var(--accent-light)" : "transparent",
+              marginBottom: 24, transition: "all 0.2s", fontSize: 14,
+            }}
+          >
+            {importing ? <><span className="spinner" /> Đang import...</> : "📂 Kéo thả file CSV vào đây để import hàng loạt"}
+          </div>
+        )}
 
         {loading ? (
           <div style={{ textAlign: "center", padding: 60 }}><span className="spinner spinner-lg" style={{ color: "var(--accent)" }} /></div>
@@ -181,10 +188,14 @@ export default function GroupsPage() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(g)} id={`btn-edit-${g.id}`}>✏️</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(g.id, g.ten_group)} id={`btn-delete-${g.id}`}>🗑</button>
-                      </div>
+                      {isManagerOrAdmin ? (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => openEdit(g)} id={`btn-edit-${g.id}`}>✏️</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(g.id, g.ten_group)} id={`btn-delete-${g.id}`}>🗑</button>
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>Chỉ xem</span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import Papa from "papaparse";
+import { getCurrentUser, isManagerOrAdmin } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  const currentUser = await getCurrentUser(req);
+  if (!currentUser || !isManagerOrAdmin(currentUser.role)) {
+    return NextResponse.json(
+      { error: "Chỉ Quản trị viên hoặc Trưởng nhóm mới có quyền import danh sách Group" },
+      { status: 403 }
+    );
+  }
+
   const formData = await req.formData();
   const file = formData.get("file") as File;
   if (!file) return NextResponse.json({ error: "Không tìm thấy file" }, { status: 400 });

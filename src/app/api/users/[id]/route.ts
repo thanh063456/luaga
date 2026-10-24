@@ -7,8 +7,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const currentUser = await getCurrentUser(req);
-  if (!currentUser || currentUser.role !== "ADMIN") {
-    return NextResponse.json({ error: "Chỉ Quản trị viên (Admin) mới có quyền sửa tài khoản" }, { status: 403 });
+  if (!currentUser || (currentUser.role !== "ADMIN" && currentUser.role !== "MANAGER")) {
+    return NextResponse.json({ error: "Không có quyền thực hiện thao tác này" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -16,10 +16,23 @@ export async function PUT(
     const body = await req.json();
     const { name, role, trang_thai, password, groupIds } = body;
 
+    // Trưởng nhóm chỉ được phân công nhóm, không được sửa quyền/mật khẩu
+    if (currentUser.role === "MANAGER") {
+      if (name || role || trang_thai || password) {
+        return NextResponse.json(
+          { error: "Trưởng nhóm chỉ có quyền phân công nhóm Facebook cho nhân sự" },
+          { status: 403 }
+        );
+      }
+    }
+
     const data: Record<string, any> = {};
     if (name) data.name = name.trim();
     if (role) data.role = role;
     if (trang_thai) data.trang_thai = trang_thai;
+    if (body.ai_quota_per_day !== undefined && currentUser.role === "ADMIN") {
+      data.ai_quota_per_day = Number(body.ai_quota_per_day) || 50;
+    }
     if (password && password.trim().length >= 6) {
       data.password = hashPassword(password.trim());
     }

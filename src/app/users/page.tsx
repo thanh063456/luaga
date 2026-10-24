@@ -16,6 +16,8 @@ interface UserItem {
   name: string;
   role: string;
   trang_thai: string;
+  ai_quota_per_day?: number;
+  ai_used_today?: number;
   createdAt: string;
   _count: {
     drafts: number;
@@ -49,9 +51,29 @@ export default function UsersPage() {
     password: "",
     role: "RECRUITER",
     groupIds: [] as string[],
+    ai_quota_per_day: 50,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [editingQuotaUser, setEditingQuotaUser] = useState<UserItem | null>(null);
+  const [newQuota, setNewQuota] = useState(50);
   const { toasts, addToast, removeToast } = useToast();
+
+  const handleSaveQuota = async () => {
+    if (!editingQuotaUser) return;
+    try {
+      const res = await fetch(`/api/users/${editingQuotaUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ai_quota_per_day: newQuota }),
+      });
+      if (!res.ok) throw new Error("Lỗi cập nhật hạn ngạch");
+      addToast(`Đã cập nhật hạn ngạch ${newQuota} lượt/ngày cho ${editingQuotaUser.name}`, "success");
+      setEditingQuotaUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      addToast(err.message, "error");
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -87,7 +109,7 @@ export default function UsersPage() {
 
       addToast("Tạo tài khoản thành công!", "success");
       setShowCreateModal(false);
-      setNewUser({ name: "", email: "", password: "", role: "RECRUITER", groupIds: [] });
+      setNewUser({ name: "", email: "", password: "", role: "RECRUITER", groupIds: [], ai_quota_per_day: 50 });
       fetchUsers();
     } catch (err: any) {
       addToast(err.message, "error");
@@ -154,6 +176,22 @@ export default function UsersPage() {
   }
 
   const isAdmin = currentUser?.role === "ADMIN";
+  const isManagerOrAdmin = isAdmin || currentUser?.role === "MANAGER";
+
+  if (currentUser && !isManagerOrAdmin) {
+    return (
+      <div className="page-body" style={{ textAlign: "center", padding: "100px 20px" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Truy cập bị từ chối</h2>
+        <p style={{ color: "var(--text-secondary)", maxWidth: 460, margin: "0 auto 24px" }}>
+          Chức năng Quản lý Tài khoản & Phân quyền chỉ dành riêng cho Quản trị viên (Admin) và Trưởng nhóm (Manager).
+        </p>
+        <a href="/" className="btn btn-primary">
+          ↩ Quay lại Trang chủ
+        </a>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -191,6 +229,7 @@ export default function UsersPage() {
                   <th style={{ padding: "14px 18px" }}>Vai trò (Role)</th>
                   <th style={{ padding: "14px 18px" }}>Nhóm FB phụ trách</th>
                   <th style={{ padding: "14px 18px" }}>Bản nháp đã tạo</th>
+                  <th style={{ padding: "14px 18px" }}>Hạn ngạch AI</th>
                   <th style={{ padding: "14px 18px" }}>Trạng thái</th>
                   <th style={{ padding: "14px 18px", textAlign: "right" }}>Thao tác</th>
                 </tr>
@@ -254,6 +293,24 @@ export default function UsersPage() {
                       </td>
                       <td style={{ padding: "14px 18px", fontWeight: 600 }}>{u._count.drafts}</td>
                       <td style={{ padding: "14px 18px" }}>
+                        {u.role === "ADMIN" ? (
+                          <span style={{ color: "#10b981", fontSize: 12, fontWeight: 600 }}>⚡ Vô hạn</span>
+                        ) : (
+                          <div>
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                fontSize: 13,
+                                color: (u.ai_used_today || 0) >= (u.ai_quota_per_day || 50) ? "#ef4444" : "var(--text-primary)",
+                              }}
+                            >
+                              {u.ai_used_today || 0} / {u.ai_quota_per_day || 50}
+                            </span>
+                            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 4 }}>lượt/ngày</span>
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: "14px 18px" }}>
                         <span
                           style={{
                             display: "inline-block",
@@ -269,6 +326,18 @@ export default function UsersPage() {
                       <td style={{ padding: "14px 18px", textAlign: "right" }}>
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                           {isAdmin && u.role !== "ADMIN" && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => {
+                                setEditingQuotaUser(u);
+                                setNewQuota(u.ai_quota_per_day || 50);
+                              }}
+                              title="Chỉnh sửa hạn ngạch AI mỗi ngày"
+                            >
+                              ⚡ Hạn ngạch
+                            </button>
+                          )}
+                          {isManagerOrAdmin && u.role !== "ADMIN" && (
                             <button
                               className="btn btn-outline btn-sm"
                               onClick={() => {
@@ -378,6 +447,22 @@ export default function UsersPage() {
                     ))}
                   </select>
                 </div>
+
+                {newUser.role !== "ADMIN" && (
+                  <div>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+                      Hạn ngạch AI mỗi ngày (lượt/ngày)
+                    </label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={newUser.ai_quota_per_day}
+                      onChange={(e) => setNewUser({ ...newUser, ai_quota_per_day: Number(e.target.value) })}
+                      min={5}
+                      max={500}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -471,6 +556,49 @@ export default function UsersPage() {
                 disabled={submitting}
               >
                 {submitting ? "Đang lưu..." : "Lưu phân công"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal chỉnh sửa Hạn ngạch AI */}
+      {editingQuotaUser && (
+        <div className="modal-backdrop">
+          <div className="modal" style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>⚡ Đổi hạn ngạch AI</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditingQuotaUser(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                Thiết lập số lượt gọi AI tối đa trong 1 ngày cho chuyên viên: <strong>{editingQuotaUser.name}</strong>
+              </p>
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+                  Số lượt AI mỗi ngày:
+                </label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={newQuota}
+                  min={5}
+                  max={1000}
+                  onChange={(e) => setNewQuota(Number(e.target.value))}
+                />
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                  Hôm nay đã dùng: <strong>{editingQuotaUser.ai_used_today || 0}</strong> lượt.
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button className="btn btn-ghost" onClick={() => setEditingQuotaUser(null)}>
+                Hủy
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveQuota}>
+                💾 Cập nhật hạn ngạch
               </button>
             </div>
           </div>

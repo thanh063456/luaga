@@ -23,6 +23,9 @@
 # database
 prisma/*.db
 prisma/*.db-journal
+prisma/backups/*.sqlite
+prisma/backups/*.db
+*.sqlite
 
 # misc
 .DS_Store

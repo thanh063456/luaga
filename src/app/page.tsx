@@ -43,12 +43,38 @@ interface PostDraft {
   trang_thai: string; // "draft", "copied", "posted"
   trang_thai_duyet: string; // "pending", "approved", "rejected"
   duyet_boi?: string;
+  ghi_chu_duyet?: string;
+  link_bai_dang?: string;
+  nhac_day_bai?: string;
   tone: string;
   thoi_gian_tao: string;
   group: Group;
   job_post: JobPost;
   user?: UserInfo;
 }
+
+const CTA_PRESETS = [
+  {
+    category: "💵 Đãi ngộ & Lương",
+    text: "\n\n💵 Thu nhập: 8.5 - 13 triệu/tháng (Lương cơ bản + Phụ cấp + Tăng ca). Nhận lương đúng hạn ngày 10 hàng tháng, có hỗ trợ ứng lương tuần!",
+  },
+  {
+    category: "🎁 Thưởng rủ bạn",
+    text: "\n\n🎁 ĐẶC BIỆT: Thưởng nóng 500.000 VNĐ cho nhân viên khi rủ bạn bè, người thân cùng ứng tuyển và nhận việc thành công!",
+  },
+  {
+    category: "⚡ Đi làm ngay",
+    text: "\n\n⚡ Phỏng vấn trực tiếp - Đi làm ngay hôm sau. Không yêu cầu kinh nghiệm, được đào tạo tay nghề miễn phí!",
+  },
+  {
+    category: "🏡 Ký túc xá & Cơm",
+    text: "\n\n🏡 Quyền lợi: Ký túc xá máy lạnh miễn phí, hỗ trợ cơm trưa/ca và có xe đưa đón công nhân tại nhiều điểm!",
+  },
+  {
+    category: "📞 Hotline Zalo",
+    text: "\n\n📞 ỨNG TUYỂN NGAY: Nhắn tin Zalo hoặc gọi Hotline để giữ vị trí và được xếp ca làm việc gần nhà nhất!",
+  },
+];
 
 const TONES = [
   { value: "tu_nhien", label: "🌱 Tự nhiên & Thân thiện" },
@@ -114,6 +140,21 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({ total: 0, posted: 0, pending: 0, approved: 0 });
   const [bannerData, setBannerData] = useState<any>(null);
   const [showBannerModal, setShowBannerModal] = useState(false);
+  const [variationDraft, setVariationDraft] = useState<PostDraft | null>(null);
+  const [variations, setVariations] = useState<any[]>([]);
+  const [loadingVariations, setLoadingVariations] = useState(false);
+
+  // Nâng cấp Manager & Recruiter
+  const [selectedDraftIds, setSelectedDraftIds] = useState<Set<string>>(new Set());
+  const [batchApproving, setBatchApproving] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
+  const [batchRejecting, setBatchRejecting] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [targetDraftForPost, setTargetDraftForPost] = useState<PostDraft | null>(null);
+  const [postUrlInput, setPostUrlInput] = useState("");
+  const [enableBumpReminder, setEnableBumpReminder] = useState(true);
+
   const { toasts, addToast, removeToast } = useToast();
 
   const isManagerOrAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "MANAGER";
@@ -221,10 +262,102 @@ export default function DashboardPage() {
     addToast(`Đã copy ${pending.length} bản nháp`, "success");
   };
 
-  const handleMarkPosted = (draft: PostDraft) =>
-    updateDraft(draft.id, {
-      trang_thai: draft.trang_thai === "posted" ? "draft" : "posted",
+  const handleMarkPosted = (draft: PostDraft) => {
+    if (draft.trang_thai === "posted") {
+      updateDraft(draft.id, { trang_thai: "draft" });
+    } else {
+      handleOpenPostModal(draft);
+    }
+  };
+
+  const handleToggleSelectDraft = (draftId: string) => {
+    setSelectedDraftIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(draftId)) next.delete(draftId);
+      else next.add(draftId);
+      return next;
     });
+  };
+
+  const handleSelectAllPending = () => {
+    const pendingIds = drafts.filter((d) => d.trang_thai_duyet === "pending").map((d) => d.id);
+    setSelectedDraftIds(new Set(pendingIds));
+  };
+
+  const handleBatchApprove = async () => {
+    if (selectedDraftIds.size === 0) return;
+    setBatchApproving(true);
+    try {
+      const res = await fetch("/api/drafts/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftIds: Array.from(selectedDraftIds),
+          action: "approve",
+          note: "Đã duyệt hàng loạt từ Dashboard",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      addToast(data.message || `Đã duyệt ${data.count} bài viết!`, "success");
+      setSelectedDraftIds(new Set());
+      fetchDrafts();
+    } catch (err: any) {
+      addToast(err.message, "error");
+    } finally {
+      setBatchApproving(false);
+    }
+  };
+
+  const handleBatchReject = async () => {
+    if (selectedDraftIds.size === 0) return;
+    setBatchRejecting(true);
+    try {
+      const res = await fetch("/api/drafts/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftIds: Array.from(selectedDraftIds),
+          action: "reject",
+          note: rejectNote.trim() || "Chưa đạt yêu cầu nội dung",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      addToast(data.message || `Đã từ chối ${data.count} bài viết!`, "info");
+      setSelectedDraftIds(new Set());
+      setShowRejectModal(false);
+      setRejectNote("");
+      fetchDrafts();
+    } catch (err: any) {
+      addToast(err.message, "error");
+    } finally {
+      setBatchRejecting(false);
+    }
+  };
+
+  const handleOpenPostModal = (draft: PostDraft) => {
+    setTargetDraftForPost(draft);
+    setPostUrlInput(draft.link_bai_dang || "");
+    setEnableBumpReminder(true);
+    setShowPostModal(true);
+  };
+
+  const handleConfirmPost = async () => {
+    if (!targetDraftForPost) return;
+    try {
+      await updateDraft(targetDraftForPost.id, {
+        trang_thai: "posted",
+        link_bai_dang: postUrlInput.trim(),
+        nhac_day_bai: enableBumpReminder ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
+      });
+      addToast("Đã cập nhật bài đăng & hẹn nhắc đẩy bài sau 24h!", "success");
+      setShowPostModal(false);
+      setTargetDraftForPost(null);
+    } catch (err: any) {
+      addToast(err.message, "error");
+    }
+  };
 
   const handleApprove = async (draft: PostDraft, status: "approved" | "rejected") => {
     await updateDraft(draft.id, { trang_thai_duyet: status });
@@ -274,6 +407,34 @@ export default function DashboardPage() {
     });
     setEditingDraft(null);
     addToast("Đã lưu thay đổi", "success");
+  };
+
+  const handleOpenVariations = async (draft: PostDraft) => {
+    setVariationDraft(draft);
+    setVariations([]);
+    setLoadingVariations(true);
+    try {
+      const res = await fetch(`/api/drafts/${draft.id}/variations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 3, tone: draft.tone || "tu_nhien" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lỗi tạo biến thể bài viết");
+      setVariations(data.variations || []);
+      addToast(`Đã sinh ${data.variations?.length || 0} biến thể độc nhất!`, "success");
+    } catch (err: any) {
+      addToast(err.message, "error");
+    } finally {
+      setLoadingVariations(false);
+    }
+  };
+
+  const handleApplyVariation = async (content: string) => {
+    if (!variationDraft) return;
+    await updateDraft(variationDraft.id, { noi_dung_ai_viet: content });
+    addToast("Đã áp dụng biến thể mới cho bài viết!", "success");
+    setVariationDraft(null);
   };
 
   const toggleExpand = (id: string) => {
@@ -393,6 +554,106 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Thanh KPI Tiến độ tuyển dụng trong ngày */}
+        <div
+          className="card"
+          style={{
+            marginBottom: 20,
+            padding: "16px 20px",
+            background: "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(56, 189, 248, 0.08) 100%)",
+            border: "1px solid rgba(99, 102, 241, 0.2)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 20 }}>🎯</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>Tiến độ KPI Đăng tin trong ngày (Mục tiêu: 30 bài)</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  Đã đăng thành công: <strong>{stats.posted}</strong> bài • Đã duyệt sẵn sàng: <strong>{stats.approved}</strong> bài
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ fontWeight: 800, fontSize: 18, color: stats.posted >= 30 ? "#10b981" : "#38bdf8" }}>
+                {stats.posted} / 30 bài ({Math.min(100, Math.round((stats.posted / 30) * 100))}%)
+              </div>
+            </div>
+          </div>
+          <div style={{ width: "100%", height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 999, overflow: "hidden" }}>
+            <div
+              style={{
+                width: `${Math.min(100, Math.round((stats.posted / 30) * 100))}%`,
+                height: "100%",
+                background: stats.posted >= 30 ? "#10b981" : "linear-gradient(90deg, #6366f1, #38bdf8)",
+                borderRadius: 999,
+                transition: "width 0.4s ease",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Thanh tác vụ Hàng loạt (Batch Actions Bar) cho Manager & Admin */}
+        {isManagerOrAdmin && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 20,
+              padding: "12px 18px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 12,
+              background: selectedDraftIds.size > 0 ? "rgba(56, 189, 248, 0.09)" : "rgba(255,255,255,0.02)",
+              border: selectedDraftIds.size > 0 ? "1px solid rgba(56, 189, 248, 0.35)" : "1px solid var(--border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={handleSelectAllPending}
+              >
+                ☑️ Chọn tất cả bài chờ duyệt ({stats.pending})
+              </button>
+              {selectedDraftIds.size > 0 && (
+                <div style={{ fontSize: 13, fontWeight: 600 }}>
+                  Đã chọn: <span style={{ color: "#38bdf8" }}>{selectedDraftIds.size}</span> bài viết
+                </div>
+              )}
+            </div>
+
+            {selectedDraftIds.size > 0 && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleBatchApprove}
+                  disabled={batchApproving}
+                >
+                  {batchApproving ? "Đang duyệt..." : `✓ Duyệt tất cả (${selectedDraftIds.size})`}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={() => setShowRejectModal(true)}
+                  disabled={batchRejecting}
+                >
+                  ✕ Từ chối kèm lý do
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setSelectedDraftIds(new Set())}
+                >
+                  Bỏ chọn
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div style={{ textAlign: "center", padding: 80 }}>
             <div className="spinner spinner-lg" style={{ color: "var(--accent)", margin: "0 auto" }} />
@@ -489,10 +750,21 @@ export default function DashboardPage() {
                             marginBottom: 8,
                           }}
                         >
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: 14 }}>{draft.group.ten_group}</div>
-                            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                              📍 {draft.group.khu_vuc}
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            {isManagerOrAdmin && (
+                              <input
+                                type="checkbox"
+                                checked={selectedDraftIds.has(draft.id)}
+                                onChange={() => handleToggleSelectDraft(draft.id)}
+                                style={{ marginTop: 3, width: 16, height: 16, accentColor: "#38bdf8", cursor: "pointer" }}
+                                title="Chọn bài viết để duyệt/từ chối hàng loạt"
+                              />
+                            )}
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: 14 }}>{draft.group.ten_group}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                                📍 {draft.group.khu_vuc}
+                              </div>
                             </div>
                           </div>
 
@@ -534,6 +806,43 @@ export default function DashboardPage() {
                             </span>
                           </div>
                         </div>
+
+                        {/* Ghi chú phản hồi duyệt từ Quản lý */}
+                        {draft.ghi_chu_duyet && (
+                          <div
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              background: draft.trang_thai_duyet === "rejected" ? "rgba(239, 68, 68, 0.12)" : "rgba(56, 189, 248, 0.08)",
+                              border: draft.trang_thai_duyet === "rejected" ? "1px dashed rgba(239, 68, 68, 0.3)" : "1px dashed rgba(56, 189, 248, 0.2)",
+                              color: draft.trang_thai_duyet === "rejected" ? "#fca5a5" : "#7dd3fc",
+                              fontSize: 12,
+                              marginBottom: 8,
+                            }}
+                          >
+                            💬 {draft.trang_thai_duyet === "rejected" ? "Lý do từ chối: " : "Ghi chú: "}
+                            <strong>{draft.ghi_chu_duyet}</strong>
+                          </div>
+                        )}
+
+                        {/* Link bài đăng thực tế trên Facebook & Hẹn đẩy bài */}
+                        {draft.link_bai_dang && (
+                          <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 6, fontSize: 12, flexWrap: "wrap" }}>
+                            <a
+                              href={draft.link_bai_dang}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: "#38bdf8", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}
+                            >
+                              🔗 Mở bài trên Facebook
+                            </a>
+                            {draft.nhac_day_bai && (
+                              <span style={{ fontSize: 11, color: "#a78bfa" }}>
+                                • 🔔 Đã hẹn đẩy bài (bump)
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {/* Cảnh báo từ nhạy cảm */}
                         {blacklistWarnings.length > 0 && (
@@ -606,6 +915,18 @@ export default function DashboardPage() {
                               id={`btn-edit-${draft.id}`}
                             >
                               ✏️ Sửa / AI Tone
+                            </button>
+                          )}
+
+                          {currentUser?.role !== "VIEWER" && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleOpenVariations(draft)}
+                              title="Tự động sinh 3-5 biến thể nội dung độc nhất để tránh Facebook chặn spam"
+                              id={`btn-variations-${draft.id}`}
+                              style={{ color: "#a855f7" }}
+                            >
+                              🔀 Biến thể AI
                             </button>
                           )}
 
@@ -717,6 +1038,39 @@ export default function DashboardPage() {
                     "🤖 Ollama Viết lại"
                   )}
                 </button>
+              </div>
+
+              {/* Thư viện Mẫu câu chốt CTA & Quyền lợi Presets */}
+              <div
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid var(--border)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>📌</span> Thư viện Mẫu câu chốt (CTA Presets) — Bấm để chèn nhanh vào cuối bài:
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {CTA_PRESETS.map((cta, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: 12, padding: "4px 10px" }}
+                      onClick={() => {
+                        setEditContent((prev) => prev.trim() + cta.text);
+                        addToast(`Đã chèn mẫu: ${cta.category}`, "info");
+                      }}
+                    >
+                      {cta.category}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <textarea
@@ -909,6 +1263,233 @@ export default function DashboardPage() {
           onClose={() => setShowBannerModal(false)}
           initialData={bannerData}
         />
+      )}
+
+      {/* Modal Biến thể AI chống trùng lặp */}
+      {variationDraft && (
+        <div className="modal-overlay" onClick={() => setVariationDraft(null)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 840, maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+          >
+            <div className="modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>🔀</span> Biến thể AI Chống Spam Facebook
+                </h3>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                  Tạo các phiên bản bài viết độc nhất cho nhóm <strong>{variationDraft.group.ten_group}</strong>
+                </p>
+              </div>
+              <button className="btn btn-ghost" onClick={() => setVariationDraft(null)}>✕</button>
+            </div>
+
+            <div className="modal-body" style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+              {loadingVariations ? (
+                <div style={{ textAlign: "center", padding: "60px 20px" }}>
+                  <span className="spinner spinner-lg" style={{ color: "var(--accent)" }} />
+                  <div style={{ marginTop: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+                    Ollama đang sáng tạo các góc nhìn bài viết độc nhất...
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
+                    Đổi cấu trúc câu, tiêu đề và lời kêu gọi hành động để tránh thuật toán chống spam của Facebook
+                  </div>
+                </div>
+              ) : variations.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>
+                  Chưa có biến thể nào được tạo. Bấm nút bên dưới để bắt đầu.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {variations.map((v: any, index: number) => (
+                    <div
+                      key={index}
+                      style={{
+                        background: "rgba(255, 255, 255, 0.03)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        padding: 16,
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <span
+                          style={{
+                            padding: "3px 10px",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            background: "rgba(168, 85, 247, 0.15)",
+                            color: "#c084fc",
+                            border: "1px solid rgba(168, 85, 247, 0.3)",
+                          }}
+                        >
+                          {v.label}
+                        </span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{v.angle}</span>
+                      </div>
+
+                      {v.blacklistWarnings && v.blacklistWarnings.length > 0 && (
+                        <div
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            background: "rgba(239, 68, 68, 0.12)",
+                            border: "1px dashed rgba(239, 68, 68, 0.3)",
+                            color: "#fca5a5",
+                            fontSize: 11,
+                            marginBottom: 10,
+                          }}
+                        >
+                          ⚠️ Chứa từ nhạy cảm: {v.blacklistWarnings.join(", ")}
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          whiteSpace: "pre-wrap",
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                          color: "var(--text-secondary)",
+                          background: "rgba(0,0,0,0.2)",
+                          padding: 12,
+                          borderRadius: 8,
+                          maxHeight: 220,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {v.content}
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(v.content);
+                            addToast("Đã copy biến thể này!", "success");
+                          }}
+                        >
+                          📋 Copy
+                        </button>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleApplyVariation(v.content)}
+                        >
+                          ✨ Áp dụng biến thể này
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handleOpenVariations(variationDraft)}
+                disabled={loadingVariations}
+              >
+                🔄 Sinh lại biến thể khác
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setVariationDraft(null)}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Từ chối duyệt bài hàng loạt */}
+      {showRejectModal && (
+        <div className="modal-overlay" onClick={() => setShowRejectModal(false)}>
+          <div className="modal" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#f87171" }}>
+                ✕ Từ chối {selectedDraftIds.size} bài viết
+              </h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowRejectModal(false)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                Vui lòng nhập lý do từ chối để chuyên viên tuyển dụng nắm thông tin và điều chỉnh lại nội dung:
+              </p>
+              <textarea
+                className="form-textarea"
+                value={rejectNote}
+                onChange={(e) => setRejectNote(e.target.value)}
+                placeholder="Ví dụ: Thiếu thông tin thưởng chuyên cần, văn phong chưa phù hợp quy định group..."
+                style={{ minHeight: 100, fontSize: 13 }}
+              />
+            </div>
+            <div className="modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button className="btn btn-ghost" onClick={() => setShowRejectModal(false)}>Hủy</button>
+              <button
+                className="btn btn-danger"
+                onClick={handleBatchReject}
+                disabled={batchRejecting}
+              >
+                {batchRejecting ? "Đang xử lý..." : "Xác nhận từ chối"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nhập Link bài viết Facebook & Hẹn nhắc đẩy bài (24h) */}
+      {showPostModal && targetDraftForPost && (
+        <div className="modal-overlay" onClick={() => setShowPostModal(false)}>
+          <div className="modal" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+                ✅ Xác nhận đã đăng lên Facebook
+              </h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowPostModal(false)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>Group: {targetDraftForPost.group.ten_group}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Vị trí: {targetDraftForPost.job_post.vi_tri_tuyen}</div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+                  Đường link bài viết Facebook (tùy chọn):
+                </label>
+                <input
+                  type="url"
+                  className="form-input"
+                  value={postUrlInput}
+                  onChange={(e) => setPostUrlInput(e.target.value)}
+                  placeholder="https://facebook.com/groups/.../posts/..."
+                />
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                  Dán link bài viết thực tế để dễ dàng quay lại kiểm tra tương tác ứng viên.
+                </div>
+              </div>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer", background: "rgba(255,255,255,0.02)", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)" }}>
+                <input
+                  type="checkbox"
+                  checked={enableBumpReminder}
+                  onChange={(e) => setEnableBumpReminder(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: "#38bdf8" }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600 }}>🔔 Bật nhắc nhở "Đẩy bài" (Bump) sau 24h</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Hệ thống sẽ gắn huy hiệu nhắc bạn vào bình luận để giữ tương tác bài viết trên Group</div>
+                </div>
+              </label>
+            </div>
+            <div className="modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button className="btn btn-ghost" onClick={() => setShowPostModal(false)}>Hủy</button>
+              <button className="btn btn-success" onClick={handleConfirmPost}>
+                Xác nhận đã đăng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />

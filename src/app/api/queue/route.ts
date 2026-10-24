@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { notifyGoldenHourQueue } from "@/lib/telegram";
 
 // Khung giờ vàng đăng bài tuyển dụng Facebook
 const GOLDEN_HOURS = {
@@ -70,6 +71,13 @@ export async function POST(req: NextRequest) {
         },
       });
       createdItems.push(item);
+    }
+
+    if (createdItems.length > 0) {
+      notifyGoldenHourQueue({
+        khungGio,
+        count: createdItems.length,
+      }).catch((e) => console.error("Lỗi gửi Telegram notify queue:", e));
     }
 
     return NextResponse.json({

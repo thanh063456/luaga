@@ -187,3 +187,69 @@ Hãy viết lại bài đăng phù hợp cho group này (chỉ trả về nội 
 
   return generateTextWithOllama({ prompt });
 }
+
+export interface PostVariationResult {
+  id: number;
+  label: string;
+  angle: string;
+  content: string;
+  blacklistWarnings: string[];
+}
+
+export async function generatePostVariations(options: {
+  jobInfo: string;
+  groupName?: string;
+  groupRules?: string;
+  toneKey?: string;
+  count?: number;
+}): Promise<PostVariationResult[]> {
+  const count = Math.min(Math.max(options.count || 3, 2), 5);
+  const toneInfo = TONE_STYLES[options.toneKey || "tu_nhien"] || TONE_STYLES.tu_nhien;
+
+  const prompt = `Bạn là chuyên gia sáng tạo nội dung tuyển dụng trên Facebook, chuyên viết nhiều biến thể bài đăng (A/B testing & Paraphrasing) để tránh thuật toán phát hiện spam nội dung trùng lặp của Facebook.
+
+Nhiệm vụ: Viết đúng ${count} BIẾN THỂ HOÀN TOÀN KHÁC NHAU cho cùng một thông tin tuyển dụng dưới đây.
+
+YÊU CẦU CHO TỪNG BIẾN THỂ:
+- Biến thể 1 (Góc nhìn Đãi ngộ & Thu nhập): Mở đầu bằng mức lương hấp dẫn, quyền lợi, thưởng nóng, emoji nổi bật, kích thích ứng viên mong muốn thu nhập tốt.
+- Biến thể 2 (Góc nhìn Kể chuyện & Thân thiện): Mở đầu bằng câu hỏi trăn trở thực tế hoặc lời tâm sự gần gũi, văn phong ấm áp, như đồng nghiệp giới thiệu cho nhau.
+- Biến thể 3 (Góc nhìn Tuyển gấp & Trực diện): Dứt khoát, đi thẳng vào vị trí, số lượng tuyển có hạn, nộp hồ sơ nhận việc ngay, CTA liên hệ nhanh qua SĐT/Zalo.
+${count >= 4 ? "- Biến thể 4 (Góc nhìn Môi trường & Phát triển): Nhấn mạnh văn hóa công ty, đồng nghiệp trẻ trung, không áp lực, hỗ trợ đào tạo từ A-Z.\n" : ""}${count >= 5 ? "- Biến thể 5 (Góc nhìn Tối giản & Súc tích): Bố cục gạch đầu dòng rõ ràng, dễ đọc trên điện thoại, đi thẳng vào quyền lợi & cách ứng tuyển.\n" : ""}
+QUY TẮC CỐT LÕI:
+1. Mỗi biến thể BẮT BUỘC giữ đúng thông tin thực tế: vị trí, địa điểm, lương, liên hệ. Tuyệt đối không bịa đặt số liệu sai lệch.
+2. Tuyệt đối KHÔNG dùng các từ nhạy cảm như "việc nhẹ lương cao", "cọc tiền", "bao đậu".
+3. Định dạng phân tách: Giữa các biến thể BẮT BUỘC dùng đúng ký hiệu ngăn cách: ===BIEN_THE===
+4. Chỉ trả về nội dung của các biến thể phân cách bằng ===BIEN_THE===, không thêm lời chào, không đánh số thứ tự hay giải thích ngoài lề.
+
+---
+THÔNG TIN TIN TUYỂN DỤNG:
+${options.jobInfo}
+
+TÊN GROUP: ${options.groupName || "Hội nhóm tuyển dụng việc làm"}
+QUY ĐỊNH GROUP: ${options.groupRules || "Tự nhiên, tuân thủ tiêu chuẩn cộng đồng"}
+TONE CHỦ ĐẠO: ${toneInfo.label} (${toneInfo.instruction})`;
+
+  const rawOutput = await generateTextWithOllama({ prompt });
+  const rawParts = rawOutput.split(/===BIEN_THE===/gi).map((p) => p.trim()).filter((p) => p.length > 20);
+
+  const angleLabels = [
+    { label: "💰 Góc nhìn Thu nhập & Đãi ngộ", angle: "Nhấn mạnh lương thưởng và chế độ hấp dẫn" },
+    { label: "🌱 Góc nhìn Thân thiện & Storytelling", angle: "Gần gũi, chân thực, tạo sự tin cậy" },
+    { label: "🚨 Góc nhìn Tuyển gấp & Trực diện", angle: "CTA mạnh mẽ, đi làm ngay, liên hệ gấp" },
+    { label: "✨ Góc nhìn Môi trường & Đào tạo", angle: "Đồng nghiệp hòa đồng, hỗ trợ người mới" },
+    { label: "📋 Góc nhìn Súc tích & Tối giản", angle: "Trực quan, dễ đọc lướt trên điện thoại" },
+  ];
+
+  return rawParts.map((content, idx) => {
+    const meta = angleLabels[idx] || { label: `Biến thể số ${idx + 1}`, angle: "Biến thể diễn đạt mới" };
+    const blacklist = checkBlacklistWords(content);
+    return {
+      id: idx + 1,
+      label: meta.label,
+      angle: meta.angle,
+      content,
+      blacklistWarnings: blacklist.found,
+    };
+  });
+}
+

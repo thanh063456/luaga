@@ -6,17 +6,16 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body {
-      width: 380px;
-      min-height: 480px;
-      max-height: 580px;
-      background: #0f172a;
+      width: 420px;
+      height: 580px;
+      background: #0b1120;
       color: #f8fafc;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
     .header {
-      padding: 14px 16px;
+      padding: 12px 16px;
       background: #1e293b;
       border-bottom: 1px solid #334155;
       display: flex;
@@ -29,62 +28,125 @@
       gap: 8px;
       font-weight: 700;
       font-size: 14px;
-      color: #6366f1;
+      color: #818cf8;
     }
     .badge {
       font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(16, 185, 129, 0.2);
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: rgba(16, 185, 129, 0.15);
       color: #34d399;
       font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.3);
     }
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      color: #818cf8;
+      border-bottom-color: #818cf8;
+      background: rgba(99, 102, 241, 0.05);
+    }
+    .tab-count {
+      background: #334155;
+      color: #f1f5f9;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 999px;
+    }
+    /* Search Bar */
+    .search-box {
+      padding: 8px 12px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+    }
+    .search-input {
+      width: 100%;
+      padding: 7px 10px;
+      background: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      color: white;
+      font-size: 12px;
+      outline: none;
+    }
+    .search-input:focus { border-color: #818cf8; }
+    /* Content Area */
     .content {
       flex: 1;
-      padding: 14px;
+      padding: 12px;
       overflow-y: auto;
     }
-    .draft-card {
+    .item-card {
       background: #1e293b;
       border: 1px solid #334155;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 12px;
       margin-bottom: 10px;
       transition: all 0.2s;
     }
-    .draft-card:hover {
+    .item-card:hover {
       border-color: #6366f1;
+      background: #243248;
     }
-    .draft-title {
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+    .item-title {
       font-weight: 600;
       font-size: 13px;
-      color: #f1f5f9;
-      margin-bottom: 4px;
+      color: #f8fafc;
     }
-    .draft-group {
-      font-size: 11px;
+    .item-group {
+      font-size: 11.5px;
       color: #94a3b8;
       margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
-    .draft-preview {
-      font-size: 12px;
+    .item-preview {
+      font-size: 11.5px;
       color: #cbd5e1;
-      line-height: 1.4;
-      max-height: 48px;
+      line-height: 1.45;
+      max-height: 52px;
       overflow: hidden;
       text-overflow: ellipsis;
       margin-bottom: 10px;
-      background: rgba(0,0,0,0.2);
-      padding: 6px 8px;
-      border-radius: 4px;
+      background: rgba(0,0,0,0.25);
+      padding: 6px 10px;
+      border-radius: 6px;
+      white-space: pre-wrap;
     }
     .actions {
       display: flex;
       gap: 6px;
+      flex-wrap: wrap;
     }
     .btn {
-      flex: 1;
-      padding: 7px 10px;
+      padding: 6px 10px;
       border-radius: 6px;
       font-size: 11.5px;
       font-weight: 600;
@@ -94,12 +156,15 @@
       align-items: center;
       justify-content: center;
       gap: 4px;
-      transition: opacity 0.15s;
+      transition: all 0.15s;
     }
     .btn:hover { opacity: 0.9; }
-    .btn-primary { background: #6366f1; color: white; }
+    .btn-primary { background: #6366f1; color: white; flex: 1; }
     .btn-secondary { background: #334155; color: #f1f5f9; }
+    .btn-outline { background: transparent; border: 1px solid #475569; color: #cbd5e1; }
+    .btn-outline:hover { background: rgba(255,255,255,0.05); }
     .btn-success { background: #10b981; color: white; }
+    /* Footer Status Bar */
     .status-bar {
       padding: 8px 14px;
       background: #1e293b;
@@ -112,27 +177,43 @@
     }
     .empty-state {
       text-align: center;
-      padding: 40px 10px;
+      padding: 40px 14px;
       color: #94a3b8;
       font-size: 12.5px;
+      line-height: 1.6;
     }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="logo">
-      <span>📣</span> FB Poster Assistant
+      <span>📣</span> FB Poster Assistant v2.0
     </div>
-    <span class="badge" id="statusBadge">Local Connected</span>
+    <span class="badge" id="serverBadge">● Localhost:3000</span>
   </div>
 
-  <div class="content" id="draftList">
-    <div class="empty-state">Đang tải bản nháp từ FB Job Poster...</div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tabDrafts">
+      <span>📝 Bản nháp</span>
+      <span class="tab-count" id="countDrafts">0</span>
+    </button>
+    <button class="tab-btn" id="tabQueue">
+      <span>⏰ Hàng đợi Giờ Vàng</span>
+      <span class="tab-count" id="countQueue">0</span>
+    </button>
+  </div>
+
+  <div class="search-box">
+    <input type="text" class="search-input" id="searchInput" placeholder="🔍 Tìm theo vị trí hoặc tên group...">
+  </div>
+
+  <div class="content" id="listContainer">
+    <div class="empty-state">Đang tải dữ liệu từ FB Job Poster...</div>
   </div>
 
   <div class="status-bar">
     <span id="tabStatus">Kiểm tra Facebook...</span>
-    <button class="btn btn-secondary" id="btnRefresh" style="flex: none; padding: 4px 8px;">🔄 Làm mới</button>
+    <button class="btn btn-secondary" id="btnRefresh" style="padding: 4px 10px; font-size: 11px;">🔄 Làm mới</button>
   </div>
 
   <script src="popup.js"></script>
