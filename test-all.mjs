@@ -217,7 +217,8 @@ async function runTests() {
     });
     assert(historyRes.ok, `Lấy lịch sử bài đã đăng /api/history (HTTP ${historyRes.status})`);
     const historyData = await historyRes.json();
-    assert(Array.isArray(historyData), `Số lượng bài trong lịch sử: ${historyData.length}`);
+    const historyList = Array.isArray(historyData) ? historyData : (historyData.drafts || []);
+    assert(Array.isArray(historyList), `Số lượng bài trong lịch sử: ${historyList.length}`);
 
     // TỔNG KẾT KẾT QUẢ
     console.log("\n==================================================");

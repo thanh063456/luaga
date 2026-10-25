@@ -1,0 +1,55 @@
+﻿==================================================
+≡ƒÜÇ Bß║«T ─Éß║ªU TEST TO├ÇN Bß╗ÿ CHß╗¿C N─éNG Hß╗å THß╗ÉNG FB JOB POSTER
+==================================================
+
+--- 1. Kiß╗âm tra X├íc thß╗▒c & ─É─âng nhß║¡p (RBAC) ---
+Γ£à [PASS] ─É─âng nhß║¡p t├ái khoß║ún Admin mß║╖c ─æß╗ïnh (HTTP 200)
+Γ£à [PASS] Quyß╗ün t├ái khoß║ún ─æ─âng nhß║¡p l├á ADMIN: ADMIN
+Γ£à [PASS] Lß║Ñy th├┤ng tin phi├¬n l├ám viß╗çc /api/auth/me (HTTP 200)
+
+--- 2. Kiß╗âm tra Quß║ún l├╜ Facebook Group ---
+Γ£à [PASS] Lß║Ñy danh s├ích Facebook Groups /api/groups (HTTP 200)
+Γ£à [PASS] Sß╗æ l╞░ß╗úng Group hiß╗çn c├│: 9
+
+--- 3. Kiß╗âm tra Nhß║¡p Tin Tuyß╗ân Dß╗Ñng & Bß╗Ö Nhß╗¢ C├┤ng Viß╗çc (Templates) ---
+Γ£à [PASS] Lß║Ñy danh s├ích mß║½u c├┤ng viß╗çc /api/templates (HTTP 200)
+Γ£à [PASS] Sß╗æ l╞░ß╗úng Template hiß╗çn c├│: 4
+Γ£à [PASS] Nhß║¡p tin tuyß╗ân dß╗Ñng & sinh bß║ún nh├íp tß╗▒ ─æß╗Öng /api/sync (HTTP 200)
+Γ£à [PASS] Kß║┐t quß║ú tß║ío tin: ─É├ú tß║ío tin thß╗º c├┤ng v├á sinh 6 bß║ún nh├íp bß║▒ng Ollama. ─É├ú tß╗▒ ─æß╗Öng l╞░u v├áo Google Sheet!
+
+--- 4. Kiß╗âm tra Quß║ún l├╜ Bß║ún nh├íp, Ghi ch├║ & Duyß╗çt h├áng loß║ít (Manager) ---
+Γ£à [PASS] Lß║Ñy danh s├ích b├ái nh├íp /api/drafts (HTTP 200)
+Γ£à [PASS] Tß╗òng sß╗æ b├ái nh├íp tr├¬n Dashboard: 25
+Γ£à [PASS] Duyß╗çt b├ái h├áng loß║ít /api/drafts/batch (HTTP 200)
+Γ£à [PASS] Kß║┐t quß║ú duyß╗çt h├áng loß║ít: ─É├ú duyß╗çt th├ánh c├┤ng 1 b├ái viß║┐t!
+Γ£à [PASS] Tß╗½ chß╗æi duyß╗çt b├ái h├áng loß║ít k├¿m ghi ch├║ (HTTP 200)
+Γ£à [PASS] Trß║íng th├íi cß║¡p nhß║¡t th├ánh c├┤ng: rejected
+Γ£à [PASS] L╞░u link b├ái ─æ─âng Facebook & hß║╣n nhß║»c ─æß║⌐y b├ái sau 24h (HTTP 200)
+Γ£à [PASS] ─É├ú l╞░u link b├ái Facebook th├ánh c├┤ng
+
+--- 5. Kiß╗âm tra H├áng ─æß╗úi Giß╗¥ V├áng (Queue) ---
+Γ£à [PASS] Lß║Ñy danh s├ích h├áng ─æß╗úi /api/queue (HTTP 200)
+Γ£à [PASS] Sß╗æ l╞░ß╗úng b├ái trong h├áng ─æß╗úi: 0
+
+--- 6. Kiß╗âm tra Quß║ún l├╜ Ng╞░ß╗¥i d├╣ng & Hß║ín ngß║ích AI (Admin) ---
+Γ£à [PASS] Lß║Ñy danh s├ích ng╞░ß╗¥i d├╣ng /api/users (HTTP 200)
+Γ£à [PASS] Sß╗æ l╞░ß╗úng ng╞░ß╗¥i d├╣ng trong hß╗ç thß╗æng: 1
+Γ£à [PASS] Hß║ín ngß║ích AI cß╗ºa Quß║ún trß╗ï vi├¬n (Admin): 100 l╞░ß╗út/ng├áy
+Γ£à [PASS] Cß║¡p nhß║¡t hß║ín ngß║ích AI l├¬n 100 l╞░ß╗út/ng├áy (HTTP 200)
+
+--- 7. Kiß╗âm tra Sao l╞░u CSDL 1-Click (Admin Backup) ---
+Γ£à [PASS] Lß║Ñy th├┤ng tin sao l╞░u CSDL /api/admin/backup (HTTP 200)
+Γ£à [PASS] K├¡ch th╞░ß╗¢c CSDL dev.db: 176.0 KB
+Γ£à [PASS] Tß║ío snapshot CSDL tr├¬n m├íy chß╗º (HTTP 200)
+Γ£à [PASS] Kß║┐t quß║ú tß║ío snapshot: ─É├ú tß║ío bß║ún sao l╞░u dev-snapshot-2026-10-25T08-19-42-238Z.sqlite th├ánh c├┤ng!
+
+--- 8. Kiß╗âm tra Cß║Ñu h├¼nh & Lß╗ïch sß╗¡ Hoß║ít ─æß╗Öng (Settings & History) ---
+Γ£à [PASS] Lß║Ñy cß║Ñu h├¼nh hß╗ç thß╗æng /api/settings (HTTP 200)
+Γ£à [PASS] Endpoint Ollama cß║Ñu h├¼nh: http://localhost:11434
+Γ£à [PASS] Lß║Ñy lß╗ïch sß╗¡ b├ái ─æ├ú ─æ─âng /api/history (HTTP 200)
+Γ£à [PASS] Sß╗æ l╞░ß╗úng b├ái trong lß╗ïch sß╗¡: 3
+
+==================================================
+≡ƒôè Tß╗öNG Kß║╛T TEST: 31 PASSED, 0 FAILED
+≡ƒÄ» Tß╗╢ Lß╗å TH├ÇNH C├öNG: 100%
+==================================================
