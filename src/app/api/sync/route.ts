@@ -211,6 +211,7 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({
+        success: true,
         message: `Đã tạo tin thủ công và sinh ${totalDrafts} bản nháp bằng Ollama.${sheetWriteSuccess ? " Đã tự động lưu vào Google Sheet!" : ""}`,
         newJobs: 1,
         totalDrafts,
